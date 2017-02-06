@@ -22,3 +22,17 @@ For each tract of land, there is data on:
 and more!
 
 I aimed to visualize relationships in the data and find where correlations might exist.
+
+## Working With Imperfect Data
+
+[The dataset](https://data.cityofnewyork.us/Education/School-Demographics-and-Accountability-Snapshot-20/ihfw-zy9j)
+
+Annual school accounts of NYC public school student populations served by grade, special programs, ethnicity, gender and Title I funded programs. It has 10000 rows and 38 columns, many of which I don't know the meaning of. For each school, there is data for:
+
+* Total enrollment
+* Enrollment for each grade
+* Number/Percentage for Asian, Black, Hispanic, and White racial groups.
+* Number/Percentage for english language learners
+* Number/Percentage for male/female
+
+and more!
