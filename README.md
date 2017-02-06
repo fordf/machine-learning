@@ -36,3 +36,5 @@ Annual school accounts of NYC public school student populations served by grade,
 * Number/Percentage for male/female
 
 and more!
+
+No cleaning of the csv file itself was necessary, it could all be done with pandas.
