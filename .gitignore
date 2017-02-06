@@ -89,3 +89,4 @@ venv/
 
 # Rope project settings
 .ropeproject
+ipynb_checkpoints
