@@ -7,7 +7,7 @@ import numpy as np
 class KNearestNeighbors(object):
     """K Nearest Neigbour Classifier."""
 
-    def predict(self, labeled_data, predict_data, k=5, label_col=-1):
+    def predict(self, predict_data, labeled_data, k=5, label_col=-1):
         """
         Given a data point, predict the class of that data, based on dataset.
 
