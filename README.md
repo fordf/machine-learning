@@ -4,14 +4,14 @@
 
 ### Neural Network
 
-Module: neural_network
-
 Python implementation of neural network as specified by Andrew Ng's ML Coursera course.
 All arrays should be numpy arrays.
 
+Module: neural_network
+
 Implemented with numpy.
 
-##### Functions:
+##### Operations:
 
 `predict(X, weights)`
 
@@ -64,8 +64,8 @@ Training using scipy's [minimize](https://docs.scipy.org/doc/scipy/reference/gen
         options=options
     )
 ```
-
-### K-Nearest Neighbors (Knn) Classifier:
+_________________________________________
+### K-Nearest Neighbors Classifier:
 
 Module: knn
 
@@ -76,11 +76,12 @@ Implemented with numpy.
 ##### Operations:
 
 `knn_clf = KNearestNeighbors()`
-
+***
 `knn_clf.predict(predict_data, labeled_data, k=5, label_col=-1)`
 
 Predict class values for dataset predict_data using labeled_data.
 
+_________________________________________
 ### Decision Tree Classifier
 
 Module: decision_tree
@@ -88,7 +89,7 @@ Module: decision_tree
 ##### Operations:
     
 `dtree = DecisionTree(min_leaf_size=1, max_depth=3)`
-
+***
 `fit(dataset, classes)`
 
 Build a decision tree off of data. Dataset should be a list of rows, with the final element of each row being the class value.
@@ -103,7 +104,7 @@ Predict class values for unclassified dataset, using fitted tree.
 
 Splits a classified dataset in two, one to build the decision tree, the other to predict with. Returns the percentage of predicted labels that match actual labels.
 
-
+_________________________________________
 ### K-Means Clustering
 
 Module: k_means
@@ -130,6 +131,7 @@ data: 2d numpy array
 k: number of centroids to randomly initialize
 init_centroids: starting locations of centroids
 
+***
 `clf.predict(data)`
 
 Return predicted classes for given data.
