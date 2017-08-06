@@ -4,21 +4,21 @@
 
 ### Neural Network
 
+Module: neural_network
+
 Python implementation of neural network as specified by Andrew Ng's ML Coursera course.
 All arrays should be numpy arrays.
 
-- Module: neural_network
+Implemented with numpy.
 
-- Functions:
+##### Functions:
 
-```python
-predict(X, weights)
-```
+`predict(X, weights)`
+
 Classify X based on trained weights.
+***
+`cost_and_gradients(weights, X, y, layer_sizes, reg_lambda)`
 
-```python
-cost_and_gradients(weights, X, y, layer_sizes, reg_lambda)
-```
 Calculate cost and gradients (partial derivs) of weights.
 
 weights: unrolled weights
@@ -26,31 +26,28 @@ X: labeled data (without labels)
 y: labels
 layer_sizes: list of layer sizes NOT INCLUDING bias units
 reg_lambda: regularization param (0 - inf)
+***
+`init_rand_weights(layer_sizes)`
 
-```python
-init_rand_weights(layer_sizes)
-```
 Returns unrolled small and random weights
+***
+`reroll(weights, layer_sizes)`
 
-```python
-reroll(weights, layer_sizes)
-```
 Convert vectorized weights back into matrixes.
+***
+`accuracy(predicted_labels, actual_labels)`
 
-```python
-accuracy(predicted_labels, actual_labels)
-```
 Percentage of data correctly classified.
+***
+`visualize(image_array, shape, labels=None, y=None, label_dict=None, order='F')`
 
-```python
-visualize(image_array, shape, labels=None, y=None, label_dict=None, order='F')
-```
 Show images within image_array one at a time, display predicted and actual labels
 if provided.
+***
 
 Training using scipy's [minimize](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html):
 
-    ```python
+ ```python
     options = {
         'disp': True,
         'maxiter': 424
@@ -66,87 +63,76 @@ Training using scipy's [minimize](https://docs.scipy.org/doc/scipy/reference/gen
         jac=True,
         options=options
     )
-
+```
 
 ### K-Nearest Neighbors (Knn) Classifier:
 
-- Module: knn
-"""
-K-Nearest Neigbour algorithm seeks to categorize new data based on the labels of the K closest data points. The distance between two points (p and q) is calculated as:
-```python
-d = sqrt(sum(p - q) ** 2)
-```
-"""
-- Methods:
-    - predict(dataset): Predict class values for unclassified dataset.
+Module: knn
 
-- Initialize:
-    - `Knn(dataset, k=5)`
+K-Nearest Neigbour algorithm seeks to categorize new data based on the labels of the K closest data points.
 
-The advantages of using  the Knn classifier are:
-- A low cost of learning
-- Often Successful when data is well mixed.
+Implemented with numpy.
 
-The disadvantages of using the Knn classifier are:
-- Very inefficient for large data sets
-- There’s no real model to interpret
-- Performance depends on the number of dimensions
-- Inconsistent results when there’s ties in votes
+##### Operations:
 
+`knn_clf = KNearestNeighbors()`
+
+`knn_clf.predict(predict_data, labeled_data, k=5, label_col=-1)`
+
+Predict class values for dataset predict_data using labeled_data.
 
 ### Decision Tree Classifier
 
-- Module: decision_tree
+Module: decision_tree
 
-- Initialize:
-    - `DecisionTree(min_leaf_size=1, max_depth=3)`
+##### Operations:
+    
+`dtree = DecisionTree(min_leaf_size=1, max_depth=3)`
 
-- Methods:
-    - ```python
-    fit(dataset, classes)
-    ```
-    Build a decision tree off of data. Dataset should be a list of rows, with the final element of each row being the class value.
+`fit(dataset, classes)`
 
-    - ```python
-    predict(dataset)
-    ```
-    Predict class values for unclassified dataset, using fitted tree.
+Build a decision tree off of data. Dataset should be a list of rows, with the final element of each row being the class value.
+***
 
-    - ```python
-    cross_validate(self, dataset, train_split=.7, label_col=-1)
-    ```
-    Splits a classified dataset in two, one to build the decision tree, the other to predict with. Returns the percentage of predicted labels that match actual labels.
+`predict(dataset)`
+
+Predict class values for unclassified dataset, using fitted tree.
+***
+
+`cross_validate(self, dataset, train_split=.7, label_col=-1)`
+
+Splits a classified dataset in two, one to build the decision tree, the other to predict with. Returns the percentage of predicted labels that match actual labels.
 
 
 ### K-Means Clustering
 
-- Module: k_means
+Module: k_means
 
-- Initialize:
-    - ```python
-    clf = KMeansClassifier(max_iter=None, min_step='auto')
-    ```
-        - max_iter: The number of iterations before the algorithm stops
-        - min_step: The smallest difference in distance between an old centroid
-                  and a new centroid before the algorithm stops. If 'auto',
-                  min_step is calculated to be 1/1000th of largest first step.
+Implemented with numpy.
 
-- Methods:
-    - ```python
-    clf.fit(data, k=None, init_centroids=None)
-    ```
-    Find centroids of clusters.
-        - data: 2d numpy array
+##### Operations
 
-        k or init_centroids required
-        - k: number of centroids to randomly initialize
-        - init_centroids: starting locations of centroids
+`clf = KMeansClassifier(max_iter=None, min_step='auto')`
 
-    - ```python
-    clf.predict(data)
-    ```
-    Return predicted classes for given data.
+max_iter: The number of iterations before the algorithm stops
+min_step: The smallest difference in distance between an old centroid
+          and a new centroid before the algorithm stops. If 'auto',
+          min_step is calculated to be 1/1000th of largest first step.
 
+***
+
+`clf.fit(data, k=None, init_centroids=None)`
+
+Find centroids of clusters.
+k or init_centroids required
+
+data: 2d numpy array
+k: number of centroids to randomly initialize
+init_centroids: starting locations of centroids
+
+`clf.predict(data)`
+
+Return predicted classes for given data.
 
 ## Notebooks
 
