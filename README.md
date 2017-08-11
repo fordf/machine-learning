@@ -5,45 +5,97 @@
 ### Neural Network
 
 Python implementation of neural network as specified by Andrew Ng's ML Coursera course.
-All arrays should be numpy arrays.
-
-Module: neural_network
-
 Implemented with numpy.
 
-##### Operations:
+#### Module: `neural_network`
 
-`predict(X, weights)`
+```python
+NeuralNetwork(weights=None)
+```
 
+weights:
+prefitted weights to predict with
+
+
+
+
+#### Methods:
+
+
+#### ```fit(self,
+            X=None,
+            y=None,
+            layer_sizes=None,
+            cost_grad_func=None,
+            args=(),
+            reg_lambda=None,
+            options=None,
+            method='CG')```
+
+X, y, layer_sizes, cost_grad_func required here or already
+attached to instance. Will attach to instance if provided here.
+
+X and y:
+###### can be paths to data files, or lists/numpy arrays
+
+cost_grad_func:
+###### must be a jacobian func (return cost and weight gradients)
+###### first arg needs to be the unrolled weights
+###### provided options: 'default', 'verbose'
+
+args:
+###### if cost_grad_func provided, these must be the function's arguments excluding the first (weights)
+
+reg_lambda:
+###### 0 or positive number
+###### make lower if underfitting, higher if overfitting
+
+options:
+###### scipy optimization options (ex: {'maxiter': 10, 'display': True})
+
+method:
+###### 'CG', 'BFGS', 'Newton-CG', 'L-BFGS-B', 'TNC', 'SLSQP', 'dogleg', 'trust-ncg'
+
+#### `predict(X, weights)`
 Classify X based on trained weights.
 ***
-`cost_and_gradients(weights, X, y, layer_sizes, reg_lambda)`
 
-Calculate cost and gradients (partial derivs) of weights.
-
-weights: unrolled weights
-X: labeled data (without labels)
-y: labels
-layer_sizes: list of layer sizes NOT INCLUDING bias units
-reg_lambda: regularization param (0 - inf)
-***
-`init_rand_weights(layer_sizes)`
-
+#### `init_rand_weights(layer_sizes)`
 Returns unrolled small and random weights
 ***
-`reroll(weights, layer_sizes)`
 
+#### `reroll(weights, layer_sizes)x`
 Convert vectorized weights back into matrixes.
 ***
-`accuracy(predicted_labels, actual_labels)`
 
+#### `accuracy(predicted, actual)`
 Percentage of data correctly classified.
 ***
-`visualize(image_array, shape, labels=None, y=None, label_dict=None, order='F')`
 
+#### `save_weights(dirname, prefix='Theta', weights=None)`
+Save weights or self.weights into potentially non-existent directory.
+Each weight layer will be saved into its own file with corresponding layer index
+(from 1).
+
+#### `load_weights(dirname)`
+Load weights into instance sorted by number in filename.
+
+#### `pickleme(filename)`
+#### `from_pickle(filename)`
+
+```python
+    nn.pickleme('goatnn')
+    goatnn = NeuralNetwork.from_pickle('goatnn')
+```
+***
+
+#### Functions:
+
+#### `visualize(image_array, shape, labels=None, y=None, label_dict=None, order='F')`
 Show images within image_array one at a time, display predicted and actual labels
 if provided.
-***
+
+
 
 Training using scipy's [minimize](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html):
 
@@ -58,7 +110,7 @@ Training using scipy's [minimize](https://docs.scipy.org/doc/scipy/reference/gen
     min_weights = minimize(
         cost_and_gradients,
         initial_weights,
-        args=args
+        args=args,
         method=method,
         jac=True,
         options=options
@@ -73,7 +125,7 @@ K-Nearest Neigbour algorithm seeks to categorize new data based on the labels of
 
 Implemented with numpy.
 
-##### Operations:
+#### Operations:
 
 `knn_clf = KNearestNeighbors()`
 ***
@@ -86,7 +138,7 @@ _________________________________________
 
 Module: decision_tree
 
-##### Operations:
+#### Operations:
     
 `dtree = DecisionTree(min_leaf_size=1, max_depth=3)`
 ***
@@ -111,7 +163,7 @@ Module: k_means
 
 Implemented with numpy.
 
-##### Operations
+#### Operations
 
 `clf = KMeansClassifier(max_iter=None, min_step='auto')`
 
