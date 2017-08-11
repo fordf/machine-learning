@@ -77,6 +77,9 @@ class KMeansClassifier(object):
                 cluster = data[labels == i]
                 if len(cluster):
                     self.centroids[i] = np.mean(cluster, axis=0)
+            iters += 1
+            if self.max_iter and iters > self.max_iter:
+                break
             if self.min_step:
                 biggest_step = np.max(
                     np.sqrt(np.sum((prev - self.centroids)**2, axis=1))
@@ -85,9 +88,6 @@ class KMeansClassifier(object):
                     self.min_step = biggest_step / 1000
                 if biggest_step <= self.min_step:
                     break
-            iters += 1
-            if self.max_iter and iters > self.max_iter:
-                break
 
     def predict(self, data):
         """Return predicted classes for given data."""
