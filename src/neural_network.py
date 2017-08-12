@@ -5,26 +5,40 @@ from scipy.optimize import minimize
 
 class NeuralNetwork:
     """
-    NeuralNetwork(weights=None)
+    NeuralNetwork(weights=None, label_names=None)
 
     weights:
         prefitted weights to predict with
+
+    label_names:
+        if labels learned from training data aren't desirable, provide this to
+        map to other values.
+        Ex: w/o label_names -> [1,0,1,3,2]
+            w/ labels_names = ['dog', 'cat', 'frog', 'bird'] ->
+                ['cat', 'dog', 'cat', 'bird', 'frog']
+
+        can also be provided to predict
     """
 
-    def __init__(self, weights=None):
+    def __init__(self, weights=None, label_names=None):
         self.weights = self._handle_file_or_arr(weights, 'weights')
         self.layer_sizes = None
         self.reg_lambda = 0
         self.X_train = None
         self.y_train = None
         self.label_handler = None
+        self.label_names = label_names
 
-    def predict(self, x):
+    def predict(self, x, label_names=None):
         """Predict labels for dataset x."""
+        label_names = label_names or self.label_names
         if self.weights is None:
             raise ValueError('Load weights into NN or fit before predicting.')
         output = self.forward_prop(x, self.weights)[-1]
-        return self.label_handler.inverse_transform(output.argmax(axis=1))
+        labels = self.label_handler.inverse_transform(output.argmax(axis=1))
+        if label_names is not None:
+            labels = np.array(self.label_names)[labels]
+        return labels
 
     def fit(self,
             X=None,
@@ -278,6 +292,10 @@ class NeuralNetwork:
         else:
             raise TypeError(param_name + ' must be filename or array/list')
         return data
+
+    def vis_weight_layer(self, layer, shape):
+        from src.helpers import visualize
+        visualize(self.weights[layer][:, 1:], shape)
 
 
 class LabelHandler:
