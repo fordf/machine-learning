@@ -12,7 +12,7 @@ class KNearestNeighbors(object):
 
     KNearestNeighbors(distance_metric='euclidean')
 
-    predefined options:
+    predefined distance metrics:
         - 'euclidean'(sqrt of sum of squared diffs)
         - 'manhattan'(sum of diffs)
     """

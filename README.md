@@ -2,10 +2,12 @@
 
 ## Algorithms
 
+package: `src`
+
 ### Neural Network
 
 Python implementation of neural network as specified by Andrew Ng's ML Coursera course.
-Implemented with numpy.
+Implemented with numpy and scipy.
 
 #### Module: `neural_network`
 
@@ -35,6 +37,8 @@ prefitted weights to predict with
 X, y, layer_sizes, cost_grad_func required here or already
 attached to instance. Will attach to instance if provided here.
 
+Implemented with scipy's [minimize](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html):
+
 X and y:
 ###### can be paths to data files, or lists/numpy arrays
 
@@ -58,19 +62,12 @@ method:
 
 #### `predict(X, weights)`
 Classify X based on trained weights.
-***
 
 #### `init_rand_weights(layer_sizes)`
 Returns unrolled small and random weights
-***
 
 #### `reroll(weights, layer_sizes)x`
 Convert vectorized weights back into matrixes.
-***
-
-#### `accuracy(predicted, actual)`
-Percentage of data correctly classified.
-***
 
 #### `save_weights(dirname, prefix='Theta', weights=None)`
 Save weights or self.weights into potentially non-existent directory.
@@ -80,46 +77,12 @@ Each weight layer will be saved into its own file with corresponding layer index
 #### `load_weights(dirname)`
 Load weights into instance sorted by number in filename.
 
-#### `pickleme(filename)`
-#### `from_pickle(filename)`
-
-```python
-    nn.pickleme('goatnn')
-    goatnn = NeuralNetwork.from_pickle('goatnn')
-```
-***
-
-#### Functions:
-
-#### `visualize(image_array, shape, labels=None, y=None, label_dict=None, order='F')`
-Show images within image_array one at a time, display predicted and actual labels
-if provided.
 
 
-
-Training using scipy's [minimize](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html):
-
- ```python
-    options = {
-        'disp': True,
-        'maxiter': 424
-    }
-    args = (X, y, layer_sizes, reg_lambda)
-    initial_weights = init_rand_weights(layer_sizes)
-
-    min_weights = minimize(
-        cost_and_gradients,
-        initial_weights,
-        args=args,
-        method=method,
-        jac=True,
-        options=options
-    )
-```
 _________________________________________
 ### K-Nearest Neighbors Classifier:
 
-Module: knn
+Module: knearest
 
 K-Nearest Neigbour algorithm seeks to categorize new data based on the labels of the K closest data points.
 
@@ -127,9 +90,17 @@ Implemented with numpy.
 
 #### Operations:
 
-`knn_clf = KNearestNeighbors()`
+```python
+knn = KNearestNeighbors(distance_metric='euclidean')
+```
+distance_metric: function that takes two np arrays and returns tensor of distances.
+
+predefined distance metrics:
+    - 'euclidean'(sqrt of sum of squared diffs)
+    - 'manhattan'(sum of diffs)
+
 ***
-`knn_clf.predict(predict_data, labeled_data, k=5, label_col=-1)`
+`knn.predict(predict_data, labeled_data, k=5, label_col=-1)`
 
 Predict class values for dataset predict_data using labeled_data.
 
@@ -139,7 +110,7 @@ _________________________________________
 Module: decision_tree
 
 #### Operations:
-    
+
 `dtree = DecisionTree(min_leaf_size=1, max_depth=3)`
 ***
 `fit(dataset, classes)`
@@ -188,6 +159,26 @@ init_centroids: starting locations of centroids
 `clf.predict(data)`
 
 Return predicted classes for given data.
+
+### General helpers
+
+#### Module: `helpers`
+
+#### `accuracy(predicted, actual)`
+Percentage of data correctly classified.
+
+#### `pickleme(filename)`
+#### `from_pickle(filename)`
+
+```python
+nn.pickleme('goatnn')
+goatnn = from_pickle('goatnn')
+```
+
+#### `visualize(image_array, shape, labels=None, y=None, order='F')`
+Show images within image_array one at a time, display predicted and actual labels
+if provided.
+
 
 ## Notebooks
 

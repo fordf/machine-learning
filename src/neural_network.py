@@ -17,6 +17,7 @@ class NeuralNetwork:
         self.reg_lambda = 0
         self.X_train = None
         self.y_train = None
+        self.label_handler = None
 
     def predict(self, x):
         """Predict labels for dataset x."""
