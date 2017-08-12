@@ -1,6 +1,4 @@
 import os
-import time
-import pickle
 import numpy as np
 from scipy.optimize import minimize
 
@@ -138,9 +136,6 @@ class NeuralNetwork:
         self.reg_lambda = reg_lambda or self.reg_lambda
         self.layer_sizes = layer_sizes or self.layer_sizes
 
-    def accuracy(self, predicted, actual):
-        return np.sum(predicted == actual) / len(actual)
-
     def save_weights(self, dirname, prefix='WLayer', weights=None):
         """
         Save weights or self.weights into new/existing directory.
@@ -168,16 +163,6 @@ class NeuralNetwork:
         for file in to_load:
             weights.append(np.loadtxt('/'.join((dirname,file))))
         self.weights = np.array(weights)
-
-    def pickleme(self, filename):
-        with open(filename, 'wb') as f:
-            pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
-
-    @classmethod
-    def from_pickle(cls, filename):
-        with open(filename, 'rb') as f:
-            nn = pickle.load(f)
-        return nn
 
     def cost_and_gradients(self, unrolled_weights, x, y, layer_sizes, reg_lambda):
         """Compute cost of dataset with unrolled_weights."""
@@ -306,28 +291,3 @@ class LabelHandler:
 
     def inverse_transform(self, labels):
         return self.labelmap[labels.astype(int)]
-
-
-def visualize(image_array, shape, predicted=None, actual=None, order='F'):
-    """
-    If your data just so happens to be iamges, show them one at a time,
-    optionally printing predicted and/or actual label for each.
-
-    visualize(image_array, shape, predicted=None, actual=None, order='F')
-    """
-    from matplotlib import pyplot as plt
-    from random import sample
-    image_array = image_array.copy()
-    try:
-        for i in sample(list(range(len(image_array))), len(image_array)):
-            if predicted is not None:
-                print('NN predicted: {}'.format(predicted[i]))
-            if actual is not None:
-                print('actual: ' + str(actual[i]))
-            plt.imshow(image_array[i].reshape(shape, order=order))
-            plt.show()
-            inp = input('q to quit, anything else to continue\n')
-            if inp in ['q', 'quit', 'exit']:
-                break
-    except KeyboardInterrupt:
-        plt.close()
