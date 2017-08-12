@@ -1,4 +1,5 @@
 import os
+import time
 import pickle
 import numpy as np
 from scipy.optimize import minimize
@@ -16,15 +17,15 @@ class NeuralNetwork:
         self.weights = self._handle_file_or_arr(weights, 'weights')
         self.layer_sizes = None
         self.reg_lambda = 0
-        self.X = None
-        self.y = None
+        self.X_train = None
+        self.y_train = None
 
     def predict(self, x):
         """Predict labels for dataset x."""
         if self.weights is None:
             raise ValueError('Load weights into NN or fit before predicting.')
-        actvs = self.forward_prop(x, self.weights)
-        return self.label_handler.inverse_transform(actvs[-1].argmax(axis=1))
+        output = self.forward_prop(x, self.weights)[-1]
+        return self.label_handler.inverse_transform(output.argmax(axis=1))
 
     def fit(self,
             X=None,
@@ -50,6 +51,9 @@ class NeuralNetwork:
 
         X, y, layer_sizes, cost_grad_func required here or already
         attached to instance. Will attach to instance if provided here.
+
+        X:
+            - shape = (num input, num features)
 
         X and y:
             - can be paths to data files, or numpy arrays
@@ -78,41 +82,22 @@ class NeuralNetwork:
                 'maxiter': 400
             }
         """
-        valid_methods = 'CG', 'BFGS', 'Newton-CG', 'L-BFGS-B', 'TNC', 'SLSQP', 'dogleg', 'trust-ncg'
+        self.prefit(X, y, layer_sizes, reg_lambda, options, method)
+
         cost_grad_funcs = {
             'default': self.cost_and_gradients,
             'verbose': self.verbose_cost_gradients,
         }
-
-        if X is not None:
-            X = self._handle_file_or_arr(X, 'X')
-        else:
-            X = self.X
-        if y is not None:
-            self.label_handler = LabelHandler()
-            y = self._handle_file_or_arr(y, 'y')
-            y = self.label_handler.fit_transform(y)
-        else:
-            y = self.y
         if isinstance(cost_grad_func, str):
             cost_grad_func = cost_grad_funcs[cost_grad_func]
-        if method not in valid_methods:
-            raise ValueError("valid methods: {}".format(valid_methods))
+            args = (self.X_train, self.y_train, self.layer_sizes, self.reg_lambda)
 
-        self.reg_lambda = reg_lambda or self.reg_lambda
-        self.layer_sizes = layer_sizes or self.layer_sizes
-
-        required = (('X', X),
-                    ('y', y),
+        required = (('X', self.X_train),
+                    ('y', self.y_train),
                     ('layer_sizes', self.layer_sizes),
                     ('cost_grad_func', cost_grad_func))
         self.assert_have_required(required)
-
-        num_features = X.shape[1]
-        self.check_layer_sizes(num_features)
-
-        if args == () and cost_grad_func in cost_grad_funcs.values():
-            args = (X, y, self.layer_sizes, self.reg_lambda)
+        self.check_layer_sizes(self.X_train)
 
         initial_weights = self.init_rand_weights(layer_sizes)
 
@@ -126,6 +111,32 @@ class NeuralNetwork:
         )
         self.weights = self.reroll(optimize_result.x, layer_sizes)
         return optimize_result
+
+    def prefit(self,
+               X=None,
+               y=None,
+               layer_sizes=None,
+               reg_lambda=0,
+               options=None,
+               method='CG'):
+        """Set up any of the nitty gritty hyperparams prior to finding minimum weights."""
+
+        valid_methods = 'CG', 'BFGS', 'Newton-CG', 'L-BFGS-B', 'TNC', 'SLSQP', 'dogleg', 'trust-ncg'
+        cost_grad_funcs = {
+            'default': self.cost_and_gradients,
+            'verbose': self.verbose_cost_gradients,
+        }
+
+        if X is not None:
+            self.X_train = self._handle_file_or_arr(X, 'X')
+        if y is not None:
+            self.label_handler = LabelHandler()
+            y = self._handle_file_or_arr(y, 'y')
+            self.y_train = self.label_handler.fit_transform(y)
+        if method not in valid_methods:
+            raise ValueError("valid methods: {}".format(valid_methods))
+        self.reg_lambda = reg_lambda or self.reg_lambda
+        self.layer_sizes = layer_sizes or self.layer_sizes
 
     def accuracy(self, predicted, actual):
         return np.sum(predicted == actual) / len(actual)
@@ -171,26 +182,30 @@ class NeuralNetwork:
     def cost_and_gradients(self, unrolled_weights, x, y, layer_sizes, reg_lambda):
         """Compute cost of dataset with unrolled_weights."""
         m = x.shape[0]
-        thetas = self.reroll(unrolled_weights, layer_sizes)
-        actvs = self.forward_prop(x, thetas)
+        weights = self.reroll(unrolled_weights, layer_sizes)
+        actvs = self.forward_prop(x, weights)
 
         cost = 1 / m * np.sum(-y * np.log(actvs[-1]) - (1-y) * np.log(1 - actvs[-1]))
-        cost += reg_lambda / 2 / m * sum(np.sum(theta[:, 1:] ** 2) for theta in thetas)
+        cost += reg_lambda / 2 / m * sum(np.sum(theta[:, 1:] ** 2) for theta in weights)
 
-        partial_ds = [actvs[-1] - y]
+        partial_d = actvs[-1] - y
         grads = []
         for i in range(1, len(layer_sizes)):
-            activation = actvs[-i - 1]
-            theta = thetas[-i]
-            big_d = partial_ds[i - 1].T.dot(self.with_ones(activation))
-            grad = big_d / m
-            grad += reg_lambda / m * np.hstack((np.zeros((len(theta), 1)), theta[:, 1:]))
+            prev_activation = actvs[-i - 1]
+            wlayer = weights[-i]
+            grad = partial_d.T.dot(self.with_ones(prev_activation)) / m
+            grad += reg_lambda / m * np.hstack((np.zeros((len(wlayer), 1)), wlayer[:, 1:]))
             grads.append(grad)
             if i < len(layer_sizes) - 1:
-                partial_d = partial_ds[i - 1].dot(theta[:, 1:])
-                partial_d *= activation * (1 - activation)
-                partial_ds.append(partial_d)
+                partial_d = partial_d.dot(wlayer[:, 1:])
+                partial_d *= prev_activation * (1 - prev_activation)
         return cost, self.unroll(grads[::-1])
+
+    def verbose_cost_gradients(self, unrolled_weights, x, y, layer_sizes, reg_lambda):
+        """Call cost_and_gradients, print cost."""
+        cost, grads = self.cost_and_gradients(unrolled_weights, x, y, layer_sizes, reg_lambda)
+        print(cost)
+        return cost, grads
 
     def forward_prop(self, x, weights):
         """Return activations at each layer during forward propagation."""
@@ -209,13 +224,13 @@ class NeuralNetwork:
     def reroll(nn_params, layer_sizes):
         """Reshape vector nn_params into 2 dimensions according to layer_sizes."""
         thetas = []
-        num_thetas = len(layer_sizes) - 1
+        num_wlayers = len(layer_sizes) - 1
         splits = [0] + [
-            (1 + layer_sizes[i]) * layer_sizes[i + 1] for i in range(num_thetas)
+            (1 + layer_sizes[i]) * layer_sizes[i + 1] for i in range(num_wlayers)
         ]
-        for i in range(num_thetas):
-            theta = nn_params[splits[i]:splits[i] + splits[i + 1]]
-            thetas.append(theta.reshape(layer_sizes[i] + 1, layer_sizes[i + 1]).T)
+        for i in range(num_wlayers):
+            wlayer = nn_params[splits[i]:splits[i] + splits[i + 1]]
+            thetas.append(wlayer.reshape(layer_sizes[i] + 1, layer_sizes[i + 1]).T)
         return thetas
 
     def init_rand_weights(self, layer_sizes):
@@ -247,13 +262,8 @@ class NeuralNetwork:
         """Return mtx with additional first column of ones."""
         return np.hstack((np.ones((len(x), 1)), x))
 
-    def verbose_cost_gradients(self, unrolled_weights, x, y, layer_sizes, reg_lambda):
-        """Call cost_and_gradients, print cost."""
-        cost, grads = self.cost_and_gradients(unrolled_weights, x, y, layer_sizes, reg_lambda)
-        print(cost)
-        return cost, grads
-
-    def check_layer_sizes(self, num_features):
+    def check_layer_sizes(self, input_data):
+        num_features = input_data.shape[1]
         num_classes = len(self.label_handler.labelmap)
         if num_features != self.layer_sizes[0]:
             raise ValueError('Input layer must be sized equal to number '
@@ -270,14 +280,12 @@ class NeuralNetwork:
             raise ValueError('Required: {}'.format(missing))
 
     @staticmethod
-    def _handle_file_or_arr(given, param_name, required=()):
+    def _handle_file_or_arr(given, param_name):
         if given is None:
-            if given in required:
-                raise ValueError('Required: ' + param_name)
             return None
         if isinstance(given, str):
             data = np.loadtxt(given)
-        elif isinstance(given, list):
+        elif isinstance(given, (list, tuple)):
             data = np.array(given)
         elif isinstance(given, np.ndarray):
             data = given
@@ -300,8 +308,13 @@ class LabelHandler:
         return self.labelmap[labels.astype(int)]
 
 
-def visualize(image_array, shape, predicted=None, actual=None, label_dict=None, order='F'):
-    """If your data just so happened to be ."""
+def visualize(image_array, shape, predicted=None, actual=None, order='F'):
+    """
+    If your data just so happens to be iamges, show them one at a time,
+    optionally printing predicted and/or actual label for each.
+
+    visualize(image_array, shape, predicted=None, actual=None, order='F')
+    """
     from matplotlib import pyplot as plt
     from random import sample
     image_array = image_array.copy()
