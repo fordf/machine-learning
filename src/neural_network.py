@@ -35,7 +35,7 @@ class NeuralNetwork:
         if self.weights is None:
             raise ValueError('Load weights into NN or fit before predicting.')
         output = self.forward_prop(x, self.weights)[-1]
-        labels = self.label_handler.inverse_transform(output.argmax(axis=1))
+        labels = self.label_handler.inverse_transform(output.argmax(axis=1)).astype(int)
         if label_names is not None:
             labels = np.array(self.label_names)[labels]
         return labels
@@ -76,7 +76,7 @@ class NeuralNetwork:
             - make lower if underfitting, higher if overfitting
 
         cost_grad_func:
-            - must be a jacobian func (return cost and weight gradients)
+            - must be a jacobian func (return cost and unrolled weight gradients)
             - first arg needs to be the unrolled weights
             - provided options:
                 - 'default', 'verbose'
@@ -135,10 +135,6 @@ class NeuralNetwork:
         """Set up any of the nitty gritty hyperparams prior to finding minimum weights."""
 
         valid_methods = 'CG', 'BFGS', 'Newton-CG', 'L-BFGS-B', 'TNC', 'SLSQP', 'dogleg', 'trust-ncg'
-        cost_grad_funcs = {
-            'default': self.cost_and_gradients,
-            'verbose': self.verbose_cost_gradients,
-        }
 
         if X is not None:
             self.X_train = self._handle_file_or_arr(X, 'X')
@@ -176,7 +172,7 @@ class NeuralNetwork:
         to_load = sorted(os.listdir(dirname), key=findnum)
         weights = []
         for file in to_load:
-            weights.append(np.loadtxt('/'.join((dirname,file))))
+            weights.append(np.loadtxt('/'.join((dirname, file))))
         self.weights = np.array(weights)
 
     def cost_and_gradients(self, unrolled_weights, x, y, layer_sizes, reg_lambda):
@@ -185,7 +181,7 @@ class NeuralNetwork:
         weights = self.reroll(unrolled_weights, layer_sizes)
         actvs = self.forward_prop(x, weights)
 
-        cost = 1 / m * np.sum(-y * np.log(actvs[-1]) - (1-y) * np.log(1 - actvs[-1]))
+        cost = np.sum(-y  * np.log(actvs[-1]) - (1-y) * np.log(1 - actvs[-1])) / m
         cost += reg_lambda / 2 / m * sum(np.sum(theta[:, 1:] ** 2) for theta in weights)
 
         partial_d = actvs[-1] - y
@@ -204,7 +200,8 @@ class NeuralNetwork:
     def verbose_cost_gradients(self, unrolled_weights, x, y, layer_sizes, reg_lambda):
         """Call cost_and_gradients, print cost."""
         cost, grads = self.cost_and_gradients(unrolled_weights, x, y, layer_sizes, reg_lambda)
-        print(cost)
+        print("cost: {:.7f}".format(cost))
+        print("mean gradient: {:.7f}".format(abs(np.mean(grads))))
         return cost, grads
 
     def forward_prop(self, x, weights):
@@ -221,17 +218,16 @@ class NeuralNetwork:
         return np.concatenate([arr.flatten(order='F') for arr in arrays])
 
     @staticmethod
-    def reroll(nn_params, layer_sizes):
-        """Reshape vector nn_params into 2 dimensions according to layer_sizes."""
-        thetas = []
-        num_wlayers = len(layer_sizes) - 1
-        splits = [0] + [
-            (1 + layer_sizes[i]) * layer_sizes[i + 1] for i in range(num_wlayers)
-        ]
-        for i in range(num_wlayers):
-            wlayer = nn_params[splits[i]:splits[i] + splits[i + 1]]
-            thetas.append(wlayer.reshape(layer_sizes[i] + 1, layer_sizes[i + 1]).T)
-        return thetas
+    def reroll(unrolled_weights, layer_sizes):
+        weights = []
+        prev_split = 0
+        for i in range(len(layer_sizes) - 1):
+            m, n = layer_sizes[i + 1], layer_sizes[i] + 1
+            next_split = prev_split + m * n
+            wlayer = unrolled_weights[prev_split:next_split]
+            weights.append(wlayer.reshape(m, n, order='F'))
+            prev_split = next_split
+        return weights
 
     def init_rand_weights(self, layer_sizes):
         params = []
@@ -247,10 +243,7 @@ class NeuralNetwork:
     @staticmethod
     def sigmoid(z):
         """Return sigmoid of z."""
-        try:
-            return 1.0 / (1.0 + np.e ** -z)
-        except FloatingPointError:
-            return 0
+        return 1.0 / (1.0 + np.e ** -z)
 
     def sigmoid_grad(self, z):
         """Return sigmoid of z."""
@@ -292,10 +285,6 @@ class NeuralNetwork:
         else:
             raise TypeError(param_name + ' must be filename or array/list')
         return data
-
-    def vis_weight_layer(self, layer, shape):
-        from src.helpers import visualize
-        visualize(self.weights[layer][:, 1:], shape)
 
 
 class LabelHandler:
