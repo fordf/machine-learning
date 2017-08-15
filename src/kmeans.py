@@ -2,15 +2,6 @@ import random
 import numpy as np
 
 
-def load_csv(filename, cols=()):
-    """Covert from csv."""
-    import numpy as np
-    data = np.loadtxt(filename,
-                      delimiter=',',
-                      usecols=cols)
-    return data
-
-
 class KMeansClassifier(object):
     """
     Unsupervised clustering algorithm.
@@ -42,14 +33,14 @@ class KMeansClassifier(object):
         """
         Find centroids of clusters.
 
-        km_clf.fit(data, k=2, init_centroids=None)
+        km_clf.fit(data, k=None, init_centroids=None)
             - data: 2d numpy array
 
             k or init_centroids required
-            - k: number of centroids to randomly initialize
+            - k: number of centroids to initialize to random points in data
             - init_centroids: starting locations of centroids
         """
-        if not isinstance(data, np.ndarray) or len(data.shape) != 2 or data.shape[1] == 0:
+        if not isinstance(data, np.ndarray):
             raise TypeError('data must be non-empty 2d numpy array')
         if k is None and init_centroids is None:
             raise ValueError('parameter k or init_centroids required')
@@ -77,12 +68,14 @@ class KMeansClassifier(object):
                 cluster = data[labels == i]
                 if len(cluster):
                     self.centroids[i] = np.mean(cluster, axis=0)
+                else:
+                    self.centroids = self.centroids[:i] + self.centroids[i+1:]
             iters += 1
             if self.max_iter and iters > self.max_iter:
                 break
             if self.min_step:
                 biggest_step = np.max(
-                    np.sqrt(np.sum((prev - self.centroids)**2, axis=1))
+                    np.linalg.norm(prev - self.centroids, axis=1)
                 )
                 if self.min_step == 'auto':
                     self.min_step = biggest_step / 1000
@@ -97,6 +90,6 @@ class KMeansClassifier(object):
 
     def _predict(self, data):
         dists = np.array(
-            [np.sqrt(np.sum((data - centroid)**2, axis=1)) for centroid in self.centroids]
+            [np.sum((data - centroid)**2, axis=1) for centroid in self.centroids]
         )
         return np.argmin(dists, axis=0)
