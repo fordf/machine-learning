@@ -1,6 +1,9 @@
 import os
+import logging
 import numpy as np
 from scipy.optimize import minimize
+
+from .helpers import rand_matrix, unroll
 
 
 class NeuralNetwork:
@@ -16,14 +19,12 @@ class NeuralNetwork:
         Ex: w/o label_names -> [1,0,1,3,2]
             w/ labels_names = ['dog', 'cat', 'frog', 'bird'] ->
                 ['cat', 'dog', 'cat', 'bird', 'frog']
-
-        can also be provided to predict
     """
 
     def __init__(self, weights=None, label_names=None):
         self.weights = self._handle_file_or_arr(weights, 'weights')
         self.layer_sizes = None
-        self.reg_lambda = 0
+        self.reg_param = 0
         self.X_train = None
         self.y_train = None
         self.label_handler = None
@@ -46,7 +47,7 @@ class NeuralNetwork:
             layer_sizes=None,
             cost_grad_func='default',
             args=(),
-            reg_lambda=0,
+            reg_param=0,
             options=None,
             method='CG'):
         """
@@ -57,7 +58,7 @@ class NeuralNetwork:
             layer_sizes=None,
             cost_grad_func='default',
             args=(),
-            reg_lambda=0,
+            reg_param=0,
             options=None,
             method='CG'
         )
@@ -71,7 +72,9 @@ class NeuralNetwork:
         X and y:
             - can be paths to data files, or numpy arrays
 
-        reg_lambda:
+        layer_sizes: list of layer ... sizes not including bias units
+
+        reg_param:
             - 0 or positive number
             - make lower if underfitting, higher if overfitting
 
@@ -95,15 +98,25 @@ class NeuralNetwork:
                 'maxiter': 400
             }
         """
-        self.prefit(X, y, layer_sizes, reg_lambda, options, method)
+        self.prefit(X, y, layer_sizes, reg_param, method)
 
         cost_grad_funcs = {
             'default': self.cost_and_gradients,
             'verbose': self.verbose_cost_gradients,
         }
         if isinstance(cost_grad_func, str):
+            args = (self.X_train, self.y_train, self.layer_sizes, self.reg_param)
+            if cost_grad_func == 'verbose':
+                logger = logging.getLogger('cost_grads')
+                logger.setLevel(logging.INFO)
+                fh = logging.FileHandler('train.log')
+                fh.setLevel(logging.INFO)
+                ch = logging.StreamHandler()
+                ch.setLevel(logging.INFO)
+                logger.addHandler(fh)
+                logger.addHandler(ch)
+                args += (logger,)
             cost_grad_func = cost_grad_funcs[cost_grad_func]
-            args = (self.X_train, self.y_train, self.layer_sizes, self.reg_lambda)
 
         required = (('X', self.X_train),
                     ('y', self.y_train),
@@ -112,7 +125,7 @@ class NeuralNetwork:
         self.assert_have_required(required)
         self.check_layer_sizes(self.X_train)
 
-        initial_weights = self.init_rand_weights(layer_sizes)
+        initial_weights = self.init_rand_weights(self.layer_sizes)
 
         optimize_result = minimize(
             cost_grad_func,
@@ -122,30 +135,31 @@ class NeuralNetwork:
             jac=True,
             options=options
         )
-        self.weights = self.reroll(optimize_result.x, layer_sizes)
+        self.weights = self.reroll(optimize_result.x, self.layer_sizes)
         return optimize_result
 
     def prefit(self,
                X=None,
                y=None,
                layer_sizes=None,
-               reg_lambda=0,
-               options=None,
+               reg_param=0,
                method='CG'):
         """Set up any of the nitty gritty hyperparams prior to finding minimum weights."""
 
         valid_methods = 'CG', 'BFGS', 'Newton-CG', 'L-BFGS-B', 'TNC', 'SLSQP', 'dogleg', 'trust-ncg'
 
-        if X is not None:
-            self.X_train = self._handle_file_or_arr(X, 'X')
         if y is not None:
             self.label_handler = LabelHandler()
             y = self._handle_file_or_arr(y, 'y')
             self.y_train = self.label_handler.fit_transform(y)
+        self.layer_sizes = layer_sizes or self.layer_sizes
+        self.reg_param = reg_param or self.reg_param
+        if X is not None:
+            self.X_train = self._handle_file_or_arr(X, 'X')
+            if self.layer_sizes is not None:
+                self.check_layer_sizes(self.X_train)
         if method not in valid_methods:
             raise ValueError("valid methods: {}".format(valid_methods))
-        self.reg_lambda = reg_lambda or self.reg_lambda
-        self.layer_sizes = layer_sizes or self.layer_sizes
 
     def save_weights(self, dirname, prefix='WLayer', weights=None):
         """
@@ -175,33 +189,41 @@ class NeuralNetwork:
             weights.append(np.loadtxt('/'.join((dirname, file))))
         self.weights = np.array(weights)
 
-    def cost_and_gradients(self, unrolled_weights, x, y, layer_sizes, reg_lambda):
-        """Compute cost of dataset with unrolled_weights."""
+    def cost_and_gradients(self, unrolled_weights, x, y, layer_sizes, reg_param):
+        """
+        Compute regularized cost of dataset with unrolled_weights.
+
+        cost_and_gradients(self, unrolled_weights, x, y, layer_sizes, reg_param)
+
+            - unrolled_weights: vector weights unrolled in 'F' (fortran?/matlab) order.
+            - x, y: train_on, labels
+            - layer_sizes: not including bias units
+            - reg_param: punish large weights with larger reg
+        """
         m = x.shape[0]
         weights = self.reroll(unrolled_weights, layer_sizes)
         actvs = self.forward_prop(x, weights)
 
         cost = np.sum(-y  * np.log(actvs[-1]) - (1-y) * np.log(1 - actvs[-1])) / m
-        cost += reg_lambda / 2 / m * sum(np.sum(theta[:, 1:] ** 2) for theta in weights)
+        cost += reg_param / 2 / m * sum(np.sum(theta[:, 1:] ** 2) for theta in weights)
 
         partial_d = actvs[-1] - y
-        grads = []
+        grads = [None] * len(weights)
         for i in range(1, len(layer_sizes)):
             prev_activation = actvs[-i - 1]
             wlayer = weights[-i]
             grad = partial_d.T.dot(self.with_ones(prev_activation)) / m
-            grad += reg_lambda / m * np.hstack((np.zeros((len(wlayer), 1)), wlayer[:, 1:]))
-            grads.append(grad)
-            if i < len(layer_sizes) - 1:
+            grad += reg_param / m * np.hstack((np.zeros((len(wlayer), 1)), wlayer[:, 1:]))
+            grads[i-1] = grad
+            if i < len(weights):
                 partial_d = partial_d.dot(wlayer[:, 1:])
                 partial_d *= prev_activation * (1 - prev_activation)
-        return cost, self.unroll(grads[::-1])
+        return cost, unroll(grads[::-1])
 
-    def verbose_cost_gradients(self, unrolled_weights, x, y, layer_sizes, reg_lambda):
+    def verbose_cost_gradients(self, unrolled_weights, x, y, layer_sizes, reg_param, logger):
         """Call cost_and_gradients, print cost."""
-        cost, grads = self.cost_and_gradients(unrolled_weights, x, y, layer_sizes, reg_lambda)
-        print("cost: {:.7f}".format(cost))
-        print("mean gradient: {:.7f}".format(abs(np.mean(grads))))
+        cost, grads = self.cost_and_gradients(unrolled_weights, x, y, layer_sizes, reg_param)
+        logger.info('{:.6f} {:.6f}'.format(cost, np.linalg.norm(grads)))
         return cost, grads
 
     def forward_prop(self, x, weights):
@@ -211,11 +233,6 @@ class NeuralNetwork:
             a = self.sigmoid(self.with_ones(actvs[-1]).dot(theta.T))
             actvs.append(a)
         return actvs
-
-    @staticmethod
-    def unroll(arrays):
-        """Unroll list of matrixes into vector."""
-        return np.concatenate([arr.flatten(order='F') for arr in arrays])
 
     @staticmethod
     def reroll(unrolled_weights, layer_sizes):
@@ -232,23 +249,13 @@ class NeuralNetwork:
     def init_rand_weights(self, layer_sizes):
         params = []
         for i in range(len(layer_sizes) - 1):
-            params.append(self._init_rand_weights(layer_sizes[i], layer_sizes[i + 1]))
-        return self.unroll(params)
-
-    @staticmethod
-    def _init_rand_weights(num_incoming, num_outgoing, eps=.12):
-        randoms = np.random.rand(num_outgoing, 1 + num_incoming)
-        return randoms * 2 * eps - eps
+            params.append(rand_matrix((layer_sizes[i], layer_sizes[i + 1] + 1)))
+        return unroll(params)
 
     @staticmethod
     def sigmoid(z):
         """Return sigmoid of z."""
         return 1.0 / (1.0 + np.e ** -z)
-
-    def sigmoid_grad(self, z):
-        """Return sigmoid of z."""
-        sig = self.sigmoid(z)
-        return sig * (1 - sig)
 
     @staticmethod
     def with_ones(x):
