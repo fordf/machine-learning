@@ -9,6 +9,8 @@ package: `src`
 Python implementation of neural network as specified by Andrew Ng's ML Coursera course.
 Implemented with numpy and scipy.
 
+Currently reimplementing to be modular and capable of fitting deep architectures.
+
 #### Module: `neural_network`
 
 ```python
